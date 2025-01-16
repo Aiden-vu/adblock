@@ -8,7 +8,14 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"time"
 )
+
+type Cache struct {
+	Name string        `json:"name"`
+	Ip   string        `json:"ip"`
+	Time time.Duration `json:"time"`
+}
 
 func main() {
 	blocklistfile, err := os.Open("blocklist.txt")
@@ -32,10 +39,32 @@ func main() {
 
 	println(blocklist)
 
+	start := time.Now()
+
 	ip := QueryIp(test)
 
+	elapsed := time.Since(start)
+
+	//things to store: domain name, IP, how long request took
+	cache := Cache{
+		Name: test,
+		Ip:   ip,
+		Time: elapsed,
+	}
+
+	file, err := os.Create("cache.json")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	if err := encoder.Encode(cache); err != nil {
+		panic(err)
+	}
 	// Print the IP address
 	fmt.Println(ip)
+	fmt.Println(elapsed)
 }
 
 func QueryIp(domain_name string) string {
