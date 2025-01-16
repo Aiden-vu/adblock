@@ -12,9 +12,9 @@ import (
 )
 
 type Cache struct {
-	Name string        `json:"name"`
-	Ip   string        `json:"ip"`
-	Time time.Duration `json:"time"`
+	Name string  `json:"name"`
+	Ip   string  `json:"ip"`
+	Time float64 `json:"time"`
 }
 
 func main() {
@@ -49,7 +49,7 @@ func main() {
 	cache := Cache{
 		Name: test,
 		Ip:   ip,
-		Time: elapsed,
+		Time: float64(elapsed.Milliseconds()) / 1000.0,
 	}
 
 	file, err := os.Create("cache.json")
