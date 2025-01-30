@@ -8,8 +8,9 @@ import (
 	"net/http"
 	"os"
 	"slices"
-	"sync"
 	"time"
+
+	"github.com/patrickmn/go-cache"
 )
 
 type Stats struct {
@@ -17,16 +18,6 @@ type Stats struct {
 	Ip   string  `json:"ip"`
 	Time float64 `json:"time"`
 }
-
-type Cache struct {
-	IP  string
-	TTL float64
-}
-
-var (
-	dnsCache = make(map[string]Cache)
-	cacheMux sync.Mutex
-)
 
 func main() {
 	blocklistfile, err := os.Open("blocklist.txt")
@@ -80,17 +71,6 @@ func main() {
 }
 
 func QueryIp(domain_name string) string {
-	cacheMux.Lock()
-	entry, found := dnsCache[domain_name]
-	cacheMux.Unlock()
-
-	// Check if the cache entry is valid
-	if found && time.Since(time.Now().Add(-time.Duration(entry.TTL)*time.Second)) <= 0 {
-		fmt.Println("Cache hit")
-		return entry.IP
-	}
-
-	fmt.Println("Cache miss, querying DNS")
 	url := "https://dns.google/resolve?name=" + domain_name + "&type=A"
 	method := "GET"
 	client := &http.Client{}
@@ -126,14 +106,10 @@ func QueryIp(domain_name string) string {
 	}
 	answer := data["Answer"].([]interface{})[0]
 	ip := answer.(map[string]interface{})["data"].(string)
-	ttl := answer.(map[string]interface{})["TTL"].(float64)
+	ttl := answer.(map[string]interface{})["TTL"].(time.Duration)
 
-	cacheMux.Lock()
-	dnsCache[domain_name] = Cache{
-		IP:  ip,
-		TTL: ttl,
-	}
-	cacheMux.Unlock()
-
+	//create new cache
+	c := cache.New(5*time.Minute, 10*time.Minute)
+	c.Set(domain_name, ip, ttl)
 	return ip
 }
