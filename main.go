@@ -71,6 +71,20 @@ func main() {
 }
 
 func QueryIp(domain_name string) string {
+	//cache check
+	c := cache.New(5*time.Minute, 10*time.Minute)
+	err := c.LoadFile("cache.txt")
+	if err != nil {
+		fmt.Println(err)
+	}
+	c.DeleteExpired()
+	a, found := c.Get("codersports.com")
+	if !found {
+		fmt.Println("a was not found")
+	} else {
+		println(a.(string), "was found")
+	}
+
 	url := "https://dns.google/resolve?name=" + domain_name + "&type=A"
 	method := "GET"
 	client := &http.Client{}
@@ -106,10 +120,11 @@ func QueryIp(domain_name string) string {
 	}
 	answer := data["Answer"].([]interface{})[0]
 	ip := answer.(map[string]interface{})["data"].(string)
-	ttl := answer.(map[string]interface{})["TTL"].(time.Duration)
+	//ttl := time.Duration(answer.(map[string]interface{})["TTL"].(float64)) * time.Second
+	ttl := time.Duration(1) * time.Second
 
 	//create new cache
-	c := cache.New(5*time.Minute, 10*time.Minute)
 	c.Set(domain_name, ip, ttl)
+	c.SaveFile("cache.txt")
 	return ip
 }
